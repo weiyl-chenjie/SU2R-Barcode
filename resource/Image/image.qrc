@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="打印">
+    <file>print.png</file>
+  </qresource>
+</RCC>
