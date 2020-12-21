@@ -22,8 +22,8 @@ if __name__ == '__main__':
                  b'COptional\x1D' + \
                  b'\x1E\x04'
     # satoString = b'\x1bA\x1bN\x1bH420\x1bV00002\x1bL0202\x1bS\x1b2D50,10,10,000,000\x1bDN%04d,' % len(data) + \
-                # data + \
-                # b'\x1bQ1\x1bZ'
+    #             data + \
+    #             b'\x1bQ1\x1bZ'
     satoString = b'\x1bA\x1bN\x1bH420\x1bV00016\x1b2D50,04,04,032,032\x1bDN%04d,' % len(data) + \
                  data + \
                  b'\x1bH560\x1bV00016\x1bL0202\x1bS' + b'H2TM' + \

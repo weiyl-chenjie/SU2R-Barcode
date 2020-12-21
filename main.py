@@ -111,7 +111,7 @@ class MyWindow(QMainWindow):
 
         if is_print:
             for i in range(start_print, end_print + 1):
-                serial_or_lot_number_info = b'%s\x1D' % str(i).encode("utf-8")
+                serial_or_lot_number_info = b'%07d\x1D' % i
                 data = header + \
                        supplier_code + \
                        part_number + \
@@ -126,13 +126,13 @@ class MyWindow(QMainWindow):
 
                 satoString = b'\x1bA\x1bN\x1bH420\x1bV00016\x1b2D50,04,04,032,032\x1bDN%04d,' % len(data) + \
                              data + \
-                             b'\x1bH560\x1bV00016\x1bL0202\x1bS' + b'H2TM' + \
-                             b'\x1bH560\x1bV00062\x1bL0202\x1bS' + b'BBBB' + \
-                             b'\x1bH560\x1bV00108\x1bL0202\x1bS' + b'0001' + \
+                             b'\x1bH560\x1bV00003\x1bL0101\x1bS' + b'\x1b$A,100,100,0\x1b$=' + self.Ui_MainWindow.lineEdit_Sequence_Code.text().encode("utf-8") + \
+                             b'\x1bH560\x1bV00098\x1bL0101\x1bS' + self.Ui_MainWindow.comboBox_PartNumber.currentText().encode("utf-8") + \
+                             b'\x1bH560\x1bV00128\x1bL0101\x1bS' + serial_or_lot_number_info[-6:-1] + \
                              b'\x1bQ1\x1bZ'
                 print(data)
-            print(satoString)
-            # self.com.send_data(satoString)
+                print(satoString)
+                self.com.send_data(satoString)
 
     # 功能函数
     def is_null(self, value, widget, is_print, length):  # 判断控件当前值是否为空
