@@ -9,6 +9,8 @@
 # 第三方库
 import serial
 import serial.tools.list_ports
+import usb.core
+import usb.util
 # 自己的包
 from config import Config
 
@@ -65,3 +67,24 @@ class ComThread:
         # 清空接收缓冲区
         self.ser.flushInput()
 
+
+class USB:
+    def __init__(self):
+        self.conf = Config()
+        # self.vid = int(self.conf.read_config(product='config', section='printer', name='vid'))  # usb的vid
+        # self.pid = int(self.conf.read_config(product='config', section='printer', name='pid'))  # usb的pid
+        self.vid = 0x0828
+        self.pid = 0x0159
+
+    def open_usb(self):
+        self.dev = usb.core.find(idVendor = self.vid, idProduct = self.pid)
+        if self.dev != None:
+            self.dev.set_configuration()
+        return self.dev
+
+    def write_data(self, endpoint, satoString):
+        try:
+            data = self.dev.write(endpoint, satoString, timeout = 1000)
+            print('data = ', data)
+        except Exception as e:
+            print(e)

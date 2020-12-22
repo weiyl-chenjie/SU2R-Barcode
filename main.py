@@ -8,8 +8,8 @@ from PySide2.QtCore import QDate
 
 # 自己的包
 from UI2PY.MainWindow import Ui_MainWindow
-from sato import ComThread
-
+import sato
+from config import Config
 
 class MyWindow(QMainWindow):
     def __init__(self):
@@ -18,16 +18,23 @@ class MyWindow(QMainWindow):
         self.Ui_MainWindow.setupUi(self)
 
         # 串口设置
-        self.com = ComThread()
+        # self.com = ComThread()
         # 打开指定串口
-        self.open_com()
+        # self.open_com()
+
+        self.conf = Config()
+
+        # USB设置
+        self.usb = sato.USB()
+        if self.usb.open_usb() == None:
+            QMessageBox.critical(self, '错误', '未找到指定USB设备')
 
         # 初始化
         try:
             with sqlite3.connect('code.db') as conn:
                 c = conn.cursor()
-                self.supplier_code = [x[0] for x in c.execute("SELECT data FROM supplier_code").fetchall()]
-                self.part_number = {x[0] : x[1] for x in c.execute("SELECT partNumber, sequenceCode FROM part_number").fetchall()}
+                self.supplier_code = [x[0] for x in c.execute("SELECT data FROM supplier_code ORDER BY data").fetchall()]
+                self.part_number = {x[0] : x[1] for x in c.execute("SELECT partNumber, sequenceCode FROM part_number ORDER BY partNumber").fetchall()}
                 self.engineering_order_number = [x[0] for x in c.execute("SELECT data FROM engineering_order_number").fetchall()]
                 self.serial_or_lot_delimiter = [x[0] for x in c.execute("SELECT data FROM serial_or_lot_delimiter").fetchall()]
                 self.free_space_for_supplier_itself = [x[0] for x in c.execute("SELECT data FROM free_space_for_supplier_itself").fetchall()]
@@ -35,15 +42,15 @@ class MyWindow(QMainWindow):
             QMessageBox.critical(self, '错误', str(e))
         self.init_widgets()
 
-    # 检查并打开指定串口
-    def open_com(self):
-        if self.com.check_com():  # 如果存在串口，则打开指定串口
-            if self.com.open_com(): # 如果串口打开成功
-                pass
-            else:
-                QMessageBox.critical(self, '错误！', '串口打开失败！')
-        else:
-            QMessageBox.critical(self, '错误！', '未发现串口！')
+    # # 检查并打开指定串口
+    # def open_com(self):
+    #     if self.com.check_com():  # 如果存在串口，则打开指定串口
+    #         if self.com.open_com(): # 如果串口打开成功
+    #             pass
+    #         else:
+    #             QMessageBox.critical(self, '错误！', '串口打开失败！')
+    #     else:
+    #         QMessageBox.critical(self, '错误！', '未发现串口！')
 
     # 初始化控件值：
     def init_widgets(self):
@@ -109,10 +116,28 @@ class MyWindow(QMainWindow):
                                           else b'')
         trailer = b'\x1E\x04'
 
+        # 读取配置文件值
+        # 二维码以及第一行文字的垂直高度（两列共用）
+        vdis = int(self.conf.read_config(product='config', section='printer', name='vdis'))
+        # 二维码水平位置（两列各自独有）
+        hdis1 = int(self.conf.read_config(product='config', section='printer', name='hdis1'))
+        hdis2 = int(self.conf.read_config(product='config', section='printer', name='hdis2'))
+        # 二维码与文字之间的水平间距（两列共用）
+        barcode_to_text_dis = int(self.conf.read_config(product='config', section='printer', name='barcode_to_text_dis'))
+        # 外侧一列标签的文字的水平位置
+        hdis1_text = hdis1 + barcode_to_text_dis
+        # 内测一列标签的文字的水平位置
+        hdis2_text = hdis2 + barcode_to_text_dis
+        # 第二行文字的垂直高度（两列共用）
+        vdis_text2 = int(self.conf.read_config(product='config', section='printer', name='vdis_text2'))
+        # 第三行文字的垂直高度（两列共用）
+        vdis_text3 = int(self.conf.read_config(product='config', section='printer', name='vdis_text3'))
+
         if is_print:
-            for i in range(start_print, end_print + 1):
-                serial_or_lot_number_info = b'%07d\x1D' % i
-                data = header + \
+            for i in range(start_print, end_print + 1, 2):
+                serial_or_lot_number_info1 = b'%07d\x1D' % i
+                serial_or_lot_number_info2 = b'%07d\x1D' % (i + 1)
+                data1 = header + \
                        supplier_code + \
                        part_number + \
                        sequence_code + \
@@ -120,19 +145,40 @@ class MyWindow(QMainWindow):
                        product_date + \
                        FourM_info + \
                        serial_or_lot_delimiter + \
-                       serial_or_lot_number_info + \
+                       serial_or_lot_number_info1 + \
                        free_space_for_supplier_itself + \
                        trailer
 
-                satoString = b'\x1bA\x1bN\x1bH420\x1bV00016\x1b2D50,04,04,032,032\x1bDN%04d,' % len(data) + \
-                             data + \
-                             b'\x1bH560\x1bV00003\x1bL0101\x1bS' + b'\x1b$A,100,100,0\x1b$=' + self.Ui_MainWindow.lineEdit_Sequence_Code.text().encode("utf-8") + \
-                             b'\x1bH560\x1bV00098\x1bL0101\x1bS' + self.Ui_MainWindow.comboBox_PartNumber.currentText().encode("utf-8") + \
-                             b'\x1bH560\x1bV00128\x1bL0101\x1bS' + serial_or_lot_number_info[-6:-1] + \
+                data2 = header + \
+                        supplier_code + \
+                        part_number + \
+                        sequence_code + \
+                        engineering_order_number + \
+                        product_date + \
+                        FourM_info + \
+                        serial_or_lot_delimiter + \
+                        serial_or_lot_number_info2 + \
+                        free_space_for_supplier_itself + \
+                        trailer
+
+                if (i+1) > end_print:  #双排打印，判断第二个标签是否超出数量限制，如果超出则该次只打印一列
+                    satoString_add = b''
+                else:
+                    satoString_add = f'\x1bH{hdis2}\x1bV{vdis}\x1b2D50,06,06,032,032\x1bDN{len(data2)},'.encode("utf-8") + \
+                                     data2 + \
+                                     (f'\x1bH{hdis2_text}\x1bV{vdis}\x1bL0202\x1bS\x1b$A,80,80,0\x1b$=' + self.Ui_MainWindow.lineEdit_Sequence_Code.text()).encode("utf-8") + \
+                                     (f'\x1bH{hdis2_text}\x1bV{vdis_text2}\x1bL0202\x1bS' + self.Ui_MainWindow.comboBox_PartNumber.currentText()).encode("utf-8") + \
+                                     f'\x1bH{hdis2_text}\x1bV{vdis_text3}\x1bL0202\x1bS'.encode("utf-8") + serial_or_lot_number_info2[-6:-1]
+                satoString = f'\x1bA\x1bH{hdis1}\x1bV{vdis}\x1b2D50,06,06,032,032\x1bDN{len(data1)},'.encode("utf-8") + \
+                             data1 + \
+                             (f'\x1bH{hdis1_text}\x1bV{vdis}\x1bL0202\x1bS\x1b$A,80,80,0\x1b$=' + self.Ui_MainWindow.lineEdit_Sequence_Code.text()).encode("utf-8") + \
+                             (f'\x1bH{hdis1_text}\x1bV{vdis_text2}\x1bL0202\x1bS' + self.Ui_MainWindow.comboBox_PartNumber.currentText()).encode("utf-8") + \
+                             f'\x1bH{hdis1_text}\x1bV{vdis_text3}\x1bL0202\x1bS'.encode("utf-8") + serial_or_lot_number_info1[-6:-1] + \
+                             satoString_add + \
                              b'\x1bQ1\x1bZ'
-                print(data)
                 print(satoString)
-                self.com.send_data(satoString)
+                # self.com.send_data(satoString)
+                self.usb.write_data(1, satoString)
 
     # 功能函数
     def is_null(self, value, widget, is_print, length):  # 判断控件当前值是否为空
